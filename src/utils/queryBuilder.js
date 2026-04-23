@@ -1,13 +1,6 @@
+// Builds MongoDB filter object from query params
 function buildFilter(query) {
-  const {
-    gender,
-    country_id,
-    age_group,
-    min_age,
-    max_age,
-    min_gender_probability,
-    min_country_probability
-  } = query;
+  const { gender, country_id, age_group, min_age, max_age, min_gender_probability, min_country_probability } = query;
 
   const filter = {};
 
@@ -39,21 +32,14 @@ function buildSort(query) {
   return { [sort_by]: order === 'desc' ? -1 : 1 };
 }
 
-
+// Returns page, limit, skip values
 function buildPagination(query) {
-  // In your GET /api/profiles endpoint
-const page = Math.max(1, parseInt(req.query.page) || 1);
-let limit = Math.min(50, parseInt(req.query.limit) || 10);
-const skip = (page - 1) * limit;
-
-// Response
-res.json({
-  status: "success",
-  page: page,
-  limit: limit,
-  total: totalCount,
-  data: profiles
-});
+  const page = Math.max(1, parseInt(query.page) || 1);
+  const requestedLimit = parseInt(query.limit);
+  // Default 10, max 50 — if limit > 50 cap it at 50
+  const limit = isNaN(requestedLimit) ? 10 : Math.min(50, Math.max(1, requestedLimit));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
 }
 
 module.exports = { buildFilter, buildSort, buildPagination };
