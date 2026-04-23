@@ -4,7 +4,7 @@ const GENDERIZE_URL = 'https://api.genderize.io';
 const AGIFY_URL = 'https://api.agify.io';
 const NATIONALIZE_URL = 'https://api.nationalize.io';
  
-// Helper to make HTTPS GET requests without external packages
+
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
@@ -18,7 +18,7 @@ function httpsGet(url) {
   });
 }
  
-// Call all 3 APIs simultaneously
+
 async function fetchAllAPIs(name) {
   const encodedName = encodeURIComponent(name);
  
