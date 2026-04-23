@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { v7: uuidv7 } = require('uuid');
 
-const Profile = require('../models/Profile');
+const Profile = require('../models/schema');
 const { fetchAllAPIs } = require('../services/externalAPIs');
 const { validateNameBody, validateQueryParams } = require('../utils/validation');
 const { buildFilter, buildSort, buildPagination } = require('../utils/queryBuilder');
-const { parseNLQuery } = require('../utils/nlpParser');
+const { parseNLQuery } = require('../utils/notationPasser');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getAgeGroup(age) {

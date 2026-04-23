@@ -54,5 +54,6 @@ res.json({
   total: totalCount,
   data: profiles
 });
+}
 
 module.exports = { buildFilter, buildSort, buildPagination };
