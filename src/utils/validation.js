@@ -10,15 +10,15 @@ function validateNameBody(name) {
   }
   return null;
 }
- 
+
 function validateQueryParams(query) {
   const { min_age, max_age, min_gender_probability, min_country_probability, page, limit, sort_by, order, gender, age_group } = query;
- 
+
   const validSortFields = ['age', 'created_at', 'gender_probability'];
   const validOrders = ['asc', 'desc'];
   const validAgeGroups = ['child', 'teenager', 'adult', 'senior'];
   const validGenders = ['male', 'female'];
- 
+
   if (min_age !== undefined && (isNaN(min_age) || Number(min_age) < 0)) {
     return { statusCode: 400, message: 'Invalid query parameters' };
   }
@@ -46,12 +46,13 @@ function validateQueryParams(query) {
   if (page !== undefined && (isNaN(page) || Number(page) < 1)) {
     return { statusCode: 400, message: 'Invalid query parameters' };
   }
-  if (limit !== undefined && (isNaN(limit) || Number(limit) < 1 || Number(limit) > 50)) {
+  // limit > 50 is silently capped at 50 in queryBuilder — NOT rejected
+  if (limit !== undefined && (isNaN(limit) || Number(limit) < 1)) {
     return { statusCode: 400, message: 'Invalid query parameters' };
   }
- 
+
   return null;
 }
- 
+
+
 module.exports = { validateNameBody, validateQueryParams };
- 
