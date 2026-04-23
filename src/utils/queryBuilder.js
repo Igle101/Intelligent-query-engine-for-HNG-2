@@ -41,12 +41,18 @@ function buildSort(query) {
 
 
 function buildPagination(query) {
-  const page = Math.max(1, parseInt(query.page) || 1);
-  const limit = Math.min(10, Math.max(1, parseInt(query.limit) || 10));
+  // In your GET /api/profiles endpoint
+const page = Math.max(1, parseInt(req.query.page) || 1);
+let limit = Math.min(50, parseInt(req.query.limit) || 10);
+const skip = (page - 1) * limit;
 
-  const skip = (page - 1) * limit;
-
-  return { page, limit, skip };
-}
+// Response
+res.json({
+  status: "success",
+  page: page,
+  limit: limit,
+  total: totalCount,
+  data: profiles
+});
 
 module.exports = { buildFilter, buildSort, buildPagination };

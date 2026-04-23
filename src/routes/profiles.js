@@ -2,30 +2,32 @@ const express = require('express');
 const router = express.Router();
 const { v7: uuidv7 } = require('uuid');
 
-const Profile = require('../models/schema');
+const Profile = require('../models/Profile');
 const { fetchAllAPIs } = require('../services/externalAPIs');
 const { validateNameBody, validateQueryParams } = require('../utils/validation');
 const { buildFilter, buildSort, buildPagination } = require('../utils/queryBuilder');
-const { parseNLQuery } = require('../utils/notationPasser');
+const { parseNLQuery } = require('../utils/nlpParser');
 
-// ─── AGE GROUP ─────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function getAgeGroup(age) {
   if (age >= 0 && age <= 12) return 'child';
   if (age >= 13 && age <= 19) return 'teenager';
   if (age >= 20 && age <= 59) return 'adult';
   if (age >= 60) return 'senior';
-  return null;
+
+
 }
 
-// ─── TOP COUNTRY ───────────────────────────
+
+
 function getTopCountry(countries) {
   if (!countries || countries.length === 0) return null;
-  return countries.reduce((top, cur) =>
-    cur.probability > top.probability ? cur : top
-  );
+  return countries.reduce((top, cur) => cur.probability > top.probability ? cur : top);
 }
 
-// ─── SEARCH (NATURAL LANGUAGE) ─────────────
+// ─── GET /api/profiles/search — Natural Language Query ────────────────────────
+// IMPORTANT: This route MUST be defined before /:id or Express will treat
+// "search" as an id parameter
 router.get('/search', async (req, res) => {
   try {
     const { q } = req.query;
@@ -37,35 +39,44 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    const { filters } = parseNLQuery(q);
+    const { filters, interpreted } = parseNLQuery(q);
 
-    // IMPORTANT FIX: do NOT reject partial interpretation
-    if (!filters) {
+    if (!interpreted || !filters) {
       return res.status(400).json({
         status: 'error',
         message: 'Unable to interpret query',
       });
     }
 
-    const mongoFilter = buildFilter(filters);
-    const sort = buildSort(req.query);
-    const { page, limit, skip } = buildPagination(req.query);
+    // Convert parsed NLP filters to MongoDB filter
+    const mongoFilter = {};
+    if (filters.gender) mongoFilter.gender = filters.gender;
+    if (filters.age_group) mongoFilter.age_group = filters.age_group;
+    if (filters.country_id) mongoFilter.country_id = filters.country_id;
+    if (filters.min_age !== undefined || filters.max_age !== undefined) {
+      mongoFilter.age = {};
+      if (filters.min_age !== undefined) mongoFilter.age.$gte = filters.min_age;
+      if (filters.max_age !== undefined) mongoFilter.age.$lte = filters.max_age;
+    }
 
+   
+   
+    const { page, limit, skip } = buildPagination(req.query);
+    
     const total = await Profile.countDocuments(mongoFilter);
+    const totalPages = Math.ceil(total / limit);
     const profiles = await Profile.find(mongoFilter)
-      .sort(sort)
+      .sort({ created_at: 1 })
       .skip(skip)
       .limit(limit);
 
     return res.status(200).json({
       status: 'success',
+      page,
+      limit,
+      total,
+      total_pages: totalPages,
       data: profiles.map(p => p.toJSON()),
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
     });
 
   } catch (err) {
@@ -77,11 +88,12 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// ─── CREATE PROFILE ─────────────────────────
+// ─── POST /api/profiles — Create a profile ────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
     const { name } = req.body;
 
+    // Validate input
     const validationError = validateNameBody(name);
     if (validationError) {
       return res.status(validationError.statusCode).json({
@@ -92,6 +104,7 @@ router.post('/', async (req, res) => {
 
     const cleanName = name.trim().toLowerCase();
 
+    // Idempotency — return existing profile if name already stored
     const existing = await Profile.findOne({ name: cleanName });
     if (existing) {
       return res.status(200).json({
@@ -101,14 +114,29 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const { genderData, ageData, nationData } = await fetchAllAPIs(cleanName);
+    // Call all 3 external APIs
+    let genderData, ageData, nationData;
+    try {
+      const result = await fetchAllAPIs(cleanName);
+      genderData = result.genderData;
+      ageData = result.ageData;
+      nationData = result.nationData;
+    } catch (err) {
+      return res.status(502).json({
+        status: 'error',
+        message: `${err.message} returned an invalid response`,
+      });
+    }
 
+    // Validate each API response
     if (!genderData.gender || genderData.count === 0) {
       return res.status(502).json({
         status: 'error',
         message: 'Genderize returned an invalid response',
       });
+
     }
+
 
     if (!ageData.age) {
       return res.status(502).json({
@@ -125,6 +153,7 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Save to database
     const profile = new Profile({
       _id: uuidv7(),
       name: cleanName,
@@ -155,7 +184,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ─── GET ALL PROFILES ───────────────────────
+// ─── GET /api/profiles — List with filtering, sorting, pagination ─────────────
 router.get('/', async (req, res) => {
   try {
     const validationError = validateQueryParams(req.query);
@@ -171,20 +200,16 @@ router.get('/', async (req, res) => {
     const { page, limit, skip } = buildPagination(req.query);
 
     const total = await Profile.countDocuments(filter);
-    const profiles = await Profile.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(limit);
+    const profiles = await Profile.find(filter).sort(sort).skip(skip).limit(limit);
+    const totalPages = Math.ceil(total / limit);
 
     return res.status(200).json({
       status: 'success',
+      page,
+      limit,
+      total,
+      total_pages: totalPages,
       data: profiles.map(p => p.toJSON()),
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
     });
 
   } catch (err) {
@@ -196,7 +221,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ─── GET BY ID ──────────────────────────────
+// ─── GET /api/profiles/:id — Get single profile ───────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
     const profile = await Profile.findById(req.params.id);
@@ -222,7 +247,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ─── DELETE PROFILE ─────────────────────────
+// ─── DELETE /api/profiles/:id — Delete a profile ─────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
     const profile = await Profile.findByIdAndDelete(req.params.id);
