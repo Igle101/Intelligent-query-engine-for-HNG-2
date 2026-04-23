@@ -79,9 +79,12 @@ function parseNLQuery(q) {
   const bothGenders = /\b(male\s+and\s+female|female\s+and\s+male|both\s+genders)\b/.test(lower);
  
   if (!bothGenders) {
-    const hasMale = /\b(male|males|man|men)\b/.test(lower);
+    const hasMale = /\b(male|males|man|men|boys|boy)\b/.test(lower);
     const hasFemale = /\b(female|females|woman|women|girl|girls)\b/.test(lower);
  
+    console.log('female',female)
+    console.log('male',male)
+    
     if (hasMale && !hasFemale) {
       filters.gender = 'male';
       matched = true;
@@ -109,12 +112,14 @@ function parseNLQuery(q) {
     matched = true;
   }
  
-  // ── "young" = ages 16–24 per spec (NOT a stored age_group) ───────────────
-  if (/\byoung\b/.test(lower)) {
-    filters.min_age = 16;
-    filters.max_age = 24;
-    matched = true;
-  }
+  // Fix for "young males"
+if (query.includes('young')) {
+  filters.min_age = 16;
+  filters.max_age = 24;  // Make sure this is set!
+}
+if (query.includes('males') || query.includes('male')) {
+  filters.gender = 'male';
+}
  
   // ── "above/over/older than X" ─────────────────────────────────────────────
   const aboveMatch = lower.match(/\b(?:above|over|older\s+than|greater\s+than|more\s+than)\s+(\d+)\b/);

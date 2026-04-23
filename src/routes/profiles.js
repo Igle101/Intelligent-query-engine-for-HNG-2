@@ -203,14 +203,14 @@ router.get('/', async (req, res) => {
     const profiles = await Profile.find(filter).sort(sort).skip(skip).limit(limit);
     const totalPages = Math.ceil(total / limit);
 
-return res.status(200).json({
-  status: 'success',
-  page,
-  limit,
-  total,
-  total_pages: totalPages,   // ← add this line
-  data: profiles.map(p => p.toJSON()),
-});
+    return res.status(200).json({
+      status: 'success',
+      page,
+      limit,
+      total,
+      total_pages: totalPages,
+      data: profiles.map(p => p.toJSON()),
+    });
 
   } catch (err) {
     console.error('GET /api/profiles error:', err.message);
