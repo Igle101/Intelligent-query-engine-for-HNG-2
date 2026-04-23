@@ -54,5 +54,4 @@ function validateQueryParams(query) {
   return null;
 }
 
-
 module.exports = { validateNameBody, validateQueryParams };
