@@ -29,18 +29,18 @@ const profileSchema = new mongoose.Schema({
  
 
 
-// profileSchema.index({
-//   gender: 1,
-//   country_id: 1,
-//   age_group: 1,
-//   age: 1,
-//   gender_probability: 1,
-//   country_probability: 1,
-//   created_at: 1,
+profileSchema.index({
+  gender: 1,
+  country_id: 1,
+  age_group: 1,
+  age: 1,
+  gender_probability: 1,
+  country_probability: 1,
+  created_at: 1,
 
 
 
-// });
+});
  
 profileSchema.methods.toJSON = function () {
   const obj = this.toObject();
